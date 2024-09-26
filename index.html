@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Degny's Verbs Attack</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #f4f4f9;
+            color: #333;
+            text-align: center;
+            padding: 20px;
+        }
+
+        h1 {
+            color: #ff5722;
+            font-size: 2.5em;
+            margin-bottom: 20px;
+        }
+
+        #game {
+            background-color: #fff;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            display: inline-block;
+            padding: 20px;
+            margin-top: 20px;
+            width: 90%;
+            max-width: 400px;
+        }
+
+        input[type="text"] {
+            padding: 10px;
+            width: 100%;
+            font-size: 1.2em;
+            margin-top: 10px;
+        }
+
+        button {
+            background-color: #ff5722;
+            color: #fff;
+            padding: 10px 20px;
+            font-size: 1.2em;
+            margin-top: 15px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #e64a19;
+        }
+
+        #mensaje {
+            margin-top: 15px;
+            font-size: 1.2em;
+        }
+
+        #contador {
+            font-size: 1.5em;
+            color: #ff5722;
+            margin-top: 10px;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .correct {
+            color: green;
+        }
+
+        .incorrect {
+            color: red;
+        }
+
+        #finalMessage {
+            margin-top: 20px;
+            font-size: 1.5em;
+        }
+
+        #finalGif {
+            margin-top: 15px;
+            width: 100%;
+            max-width: 300px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Degny's Verbs Attack</h1>
+    <p>Traduce el verbo en el tiempo verbal indicado. Tienes 15 segundos para responder.</p>
+    <div id="game" class="hidden">
+        <p id="pregunta"></p>
+        <input type="text" id="respuesta" placeholder="Escribe la traducción en inglés" />
+        <button id="sendButton" onclick="checkAnswer()">Enviar</button>
+        <p id="mensaje"></p>
+        <p id="contador">Tiempo restante: <span id="tiempo">15</span> segundos</p>
+        <p>Puntaje: <span id="puntaje">0</span></p>
+        <p id="preguntaContador">Pregunta: <span id="currentQuestion">1</span>/<span id="totalQuestions">60</span></p>
+        <p id="correctas">Respuestas correctas: <span id="correctCount" class="correct">0</span></p>
+        <p id="incorrectas">Respuestas incorrectas: <span id="incorrectCount" class="incorrect">0</span></p>
+        <button id="nextButton" class="hidden" onclick="nextVerbo()">Siguiente</button>
+    </div>
+    <button id="startButton" onclick="startGame()">Iniciar Juego</button>
+    <div id="finalMessage" class="hidden"></div>
+    <img id="finalGif" class="hidden" src="" alt="Resultado final"/>
+
+    <script>
+        const verbos = [
+            {es: "ir", en: {present: "go", past: "went", participle: "gone"}},
+            {es: "comer", en: {present: "eat", past: "ate", participle: "eaten"}},
+            {es: "ver", en: {present: "see", past: "saw", participle: "seen"}},
+            {es: "tomar", en: {present: "take", past: "took", participle: "taken"}},
+            {es: "venir", en: {present: "come", past: "came", participle: "come"}},
+            {es: "tener/haber", en: {present: "have", past: "had", participle: "had"}},
+            {es: "hacer (make)", en: {present: "make", past: "made", participle: "made"}},
+            {es: "hacer (do)", en: {present: "do", past: "did", participle: "done"}},
+            {es: "escribir", en: {present: "write", past: "wrote", participle: "written"}},
+            {es: "leer", en: {present: "read", past: "read", participle: "read"}},
+            {es: "beber", en: {present: "drink", past: "drank", participle: "drunk"}},
+            {es: "dar", en: {present: "give", past: "gave", participle: "given"}},
+            {es: "saber", en: {present: "know", past: "knew", participle: "known"}},
+            {es: "hablar", en: {present: "speak", past: "spoke", participle: "spoken"}},
+            {es: "volar", en: {present: "fly", past: "flew", participle: "flown"}},
+            {es: "correr", en: {present: "run", past: "ran", participle: "run"}},
+            {es: "conducir", en: {present: "drive", past: "drove", participle: "driven"}},
+            {es: "construir", en: {present: "build", past: "built", participle: "built"}},
+            {es: "romper", en: {present: "break", past: "broke", participle: "broken"}},
+            {es: "comprar", en: {present: "buy", past: "bought", participle: "bought"}}
+        ];
+
+        const tiempos = ["present", "past", "participle"];
+        let puntaje = 0;
+        let currentVerbo = {};
+        let currentTiempo = "";
+        let timer, countdown;
+        let tiempoRestante = 15;
+        let preguntasRealizadas = new Set(); // Para almacenar las preguntas ya realizadas
+        const totalQuestions = verbos.length * tiempos.length;
+
+        document.getElementById('respuesta').addEventListener('keydown', function(event) {
+            if (event.key === "Enter") {
+                checkAnswer();
+            }
+        });
+
+        function startGame() {
+            document.getElementById("startButton").style.display = "none";
+            document.getElementById("game").classList.remove("hidden");
+            document.getElementById("totalQuestions").textContent = totalQuestions; // Mostrar total de preguntas
+            nextVerbo();
+        }
+
+        function nextVerbo() {
+            document.getElementById("mensaje").textContent = "";
+            document.getElementById("respuesta").value = "";
+            document.getElementById("nextButton").classList.add("hidden");
+            document.getElementById("respuesta").disabled = false; // Habilitar entrada
+            document.getElementById("sendButton").disabled = false; // Habilitar botón de envío
+            document.getElementById("respuesta").focus();  // Enfoca automáticamente el cuadro de texto
+            tiempoRestante = 15;
+            document.getElementById("tiempo").textContent = tiempoRestante;
+
+            // Selecciona un verbo y un tiempo aleatoriamente
+            if (preguntasRealizadas.size >= totalQuestions) {
+                endGame(); // Llama a la función de finalización del juego
+                return;
+            }
+
+            let index;
+            do {
+                index = Math.floor(Math.random() * verbos.length);
+                currentTiempo = tiempos[Math.floor(Math.random() * tiempos.length)];
+            } while (preguntasRealizadas.has(`${index}-${currentTiempo}`)); // Verificar si ya se hizo la pregunta
+
+            preguntasRealizadas.add(`${index}-${currentTiempo}`); // Marcar pregunta como realizada
+            currentVerbo = verbos[index];
+
+            // Muestra la pregunta
+            document.getElementById("pregunta").textContent = `¿Cómo se dice "${currentVerbo.es}" en inglés en ${currentTiempo === "past" ? "simple past" : currentTiempo === "participle" ? "past participle" : "present"}?`;
+            document.getElementById("currentQuestion").textContent = preguntasRealizadas.size; // Mostrar pregunta actual
+
+            countdown = setInterval(() => {
+                tiempoRestante--;
+                document.getElementById("tiempo").textContent = tiempoRestante;
+                if (tiempoRestante === 0) {
+                    clearInterval(countdown);
+                    checkAnswer(true); // Si se acaba el tiempo, muestra la respuesta correcta
+                }
+            }, 1000);
+
+            timer = setTimeout(() => {
+                clearInterval(countdown);
+                checkAnswer(true); // Si se acaba el tiempo, muestra la respuesta correcta
+            }, tiempoRestante * 1000);
+        }
+
+        function checkAnswer(timeout = false) {
+            clearTimeout(timer);
+            clearInterval(countdown);
+            const respuesta = document.getElementById("respuesta").value.trim();
+            const correcta = currentVerbo.en[currentTiempo];
+
+            // Deshabilitar entrada y botón de envío
+            document.getElementById("respuesta").disabled = true;
+            document.getElementById("sendButton").disabled = true;
+
+            if (timeout) {
+                document.getElementById("mensaje").textContent = `Tiempo agotado! La respuesta correcta era "${correcta}".`;
+            } else {
+                if (respuesta.toLowerCase() === correcta) {
+                    puntaje++;
+                    document.getElementById("mensaje").textContent = `¡Correcto! La respuesta era "${correcta}".`;
+                } else {
+                    document.getElementById("mensaje").textContent = `Incorrecto! La respuesta correcta era "${correcta}".`;
+                }
+            }
+
+               // Pronunciación de la respuesta correcta
+            const utterance = new SpeechSynthesisUtterance(correcta);
+            utterance.lang = 'en-US';
+            speechSynthesis.speak(utterance);
+
+
+            // Actualiza el puntaje
+            document.getElementById("puntaje").textContent = puntaje;
+            document.getElementById("correctCount").textContent = puntaje; // Respuestas correctas
+            document.getElementById("incorrectCount").textContent = preguntasRealizadas.size - puntaje; // Respuestas incorrectas
+
+            // Mostrar botón "Siguiente"
+            document.getElementById("nextButton").classList.remove("hidden");
+        }
+
+        function endGame() {
+            document.getElementById("game").classList.add("hidden");
+            document.getElementById("startButton").style.display = "block";
+            document.getElementById("finalMessage").classList.remove("hidden");
+            document.getElementById("finalGif").classList.remove("hidden");
+            document.getElementById("finalGif").src = "";
+
+            // Mensaje final basado en el puntaje
+            if (puntaje < 59) {
+                document.getElementById("finalMessage").textContent = "Si vieras menos Tik Tok y estudiaras más inglés, lo hubieras logrado.";
+                document.getElementById("finalGif").src = "https://giphy.com/gifs/foxsearchlight-8UGoOaR1lA1uaAN892"; // GIF de decepción
+            } else if (puntaje === 60) {
+                document.getElementById("finalMessage").textContent = "Perfect, lo has logrado, te mereces la Green Card.";
+                document.getElementById("finalGif").src = "https://i.giphy.com/media/v1.Y2lkPTc5MGI3NjExbDMyMWtqeDJ2MDhsNG5nd3l5cTZyOHVvaDQzZnQ4ZG5rMnZnMjJuMiZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/ELxTc8j0ixJGbXqTkR/giphy.gif"; // GIF de bandera ondeando
+            }
+        }
+    </script>
+</body>
+</html>
